@@ -13,7 +13,8 @@ import flet as ft
 class TodoState:
     def __init__(self):
         self.items: list = []
- 
+        self.filter: str = "all" # all, active, completed
+
     def add_item(self, text: str):
         if text.strip():
             self.items = [
@@ -41,6 +42,19 @@ class TodoState:
     def delete(self, id: int):
         self.items = [item for item in self.items if item["id"] != id]
 
+    def set_filter(self, filter: str):
+        self.filter = filter
+
+    def get_filtered_items(self):
+        if self.filter == "active":
+            return [item for item in self.items if not item["completed"]]
+        elif self.filter == "completed":
+            return [item for item in self.items if item["completed"]]
+        return self.items
+    
+    def get_remaining_count(self):
+        return len([item for item in self.items if not item["completed"]])
+
 state = TodoState()
 
 # form to add new todo item
@@ -59,8 +73,30 @@ def TodoForm():
             expand=True,
             on_change=lambda e: set_val(e.control.value),
             on_submit=add_todo,
+            prefix_icon=ft.Icons.ADD_TASK,
         ),
-        ft.Button("Add", icon=ft.Icons.ADD, on_click=add_todo),
+        ft.FilledButton("Add", icon=ft.Icons.ADD, on_click=add_todo),
+    ])
+
+# component to display filter options
+@ft.component
+def FilterTabs():
+
+    ft.use_state(state)
+
+    return ft.Row([
+        ft.Text(f"{state.get_remaining_count()} remaining tasks", 
+                color=ft.Colors.GREY_600, size=14),
+        ft.Container(expand=True),
+        ft.SegmentedButton(
+            selected=[state.filter],
+            on_change=lambda e: state.set_filter(list(e.control.selected)[0]),
+            segments=[
+                ft.Segment(value="all", label=ft.Text("All")),
+                ft.Segment(value="active", label=ft.Text("Active")),
+                ft.Segment(value="completed", label=ft.Text("Completed")),
+            ],
+        ),
     ])
 
 # component to display todo item
@@ -89,7 +125,6 @@ def TodoItem(item):
 # component to display list of todo items
 @ft.component
 def TodoList():
-
     '''
             Vì sao phải làm vậy?
     @ft.observable chỉ đánh dấu object có thể reactive.
@@ -100,22 +135,37 @@ def TodoList():
         UI không biết ✔
     → List không hiển thị ✔
     '''
-
     ft.use_state(state) # 👈 thêm dòng này để subscribe
 
-    if not state.items:
+    filtered = state.get_filtered_items()
+
+    if not filtered:
+        msg = "✨ There are no tasks yet." if state.filter != "all" else "✨ Add some tasks !!!"
         return ft.Container(
-            content=ft.Text(
-                "✨ There are no tasks yet. Add some tasks!",
-                color=ft.Colors.GREY_500
-            ),
+            content=ft.Text(msg, color=ft.Colors.GREY_500, size=16),
             padding=40,
             alignment=ft.Alignment.CENTER,
         )
 
     return ft.Column([
-        TodoItem(item) for item in state.items
+        TodoItem(item) for item in filtered
     ])
+
+# main component
+@ft.component
+def TodoApp():
+    return ft.Container(
+        content=ft.Column([
+            ft.Text("📝 Todo List", size=28, weight=ft.FontWeight.BOLD),
+            TodoForm(),
+            ft.Container(height=10),
+            FilterTabs(),
+            ft.Divider(),
+            TodoList(),
+        ]),
+        padding=20,
+        width=500,
+    )
 
 def main(page: ft.Page):
     page.title = "Todo List App"
@@ -125,13 +175,6 @@ def main(page: ft.Page):
     # page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
     # page.bgcolor = ft.Colors.GREY_300
 
-    page.render(
-        lambda: ft.Column([
-            ft.Text("📝 Todo List", size=28, weight=ft.FontWeight.BOLD),
-            TodoForm(),
-            TodoList(),
-
-        ])
-    )
+    page.render(TodoApp)
  
 ft.run(main)
