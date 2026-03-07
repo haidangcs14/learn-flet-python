@@ -7,7 +7,6 @@ Thử thách mở rộng
 - Scientific mode - Thêm sin, cos, sqrt…
 
 '''
-
 import flet as ft
 import math
 import re
@@ -23,7 +22,6 @@ class CalcState:
     def input(self, value: str):
         if (self.expression.endswith("%") and value.isdigit()):
             self.expression += "×"
-
         self.expression += value
     
     def clear(self):
@@ -34,13 +32,10 @@ class CalcState:
         self.expression = self.expression[:-1]
     
     def calculate(self):
-
         try:
             # replate chars to eval
             expr = self.expression.replace("×", "*").replace("÷", "/").replace("^", "**").replace("%", "/100").replace("√", "sqrt")
-            
-            print(expr)
-
+        
             # scientific
             if self.angle_mode == "DEG":
                 def sin(x): return math.sin(math.radians(x))
@@ -61,7 +56,6 @@ class CalcState:
                 "sqrt": sqrt,
                 "log": log
             }), 5))
-
             self.history.append((self.expression, self.result))
         except:
             self.result = "Error"
@@ -119,7 +113,6 @@ def DisplayResult():
 # component for buttons
 @ft.component
 def CalcButton(text: str, expand: int = 1, bg_color=None, text_color=None):
-    
     def on_click(_):
         if text == "C":
             state.clear()
@@ -199,17 +192,13 @@ def ButtonGrid():
 
 # handle keyboard input
 def keyboard(e: ft.KeyboardEvent):
-
     key = e.key
-
     # SHIFT mappings
     if e.shift:
         shift_map = {"8": "*","9": "(","0": ")","=": "+","5": "%",}
-
         if key in shift_map:
             state.input(shift_map[key])
             return
-
     # numbers
     if key.isdigit():
         state.input(key)
@@ -234,13 +223,9 @@ def keyboard(e: ft.KeyboardEvent):
 
 @ft.component
 def HistoryButton(page: ft.Page):
-    
     def open_history(_):
-
         history_items = []
-
         for expr, res in reversed(state.history):
-
             history_items.append(
                 ft.Row(
                     [
