@@ -1,5 +1,6 @@
 import flet as ft
- 
+import json
+
 @ft.observable
 class ThemeState:
     is_dark: bool = False
@@ -134,6 +135,15 @@ def ThemeSettings():
 def ThemeSwitcherApp(page: ft.Page):
     ft.use_state(state)
 
+    async def save_preferences():
+        await page.shared_preferences.set(
+            "theme",
+            json.dumps({
+                "dark": state.is_dark,
+                "color": state.primary_color
+            })
+        )
+
     def update_theme():
         page.theme = ft.Theme(
             color_scheme=ft.ColorScheme(primary=state.get_primary())
@@ -143,6 +153,8 @@ def ThemeSwitcherApp(page: ft.Page):
         )
         page.theme_mode = ft.ThemeMode.DARK if state.is_dark else ft.ThemeMode.LIGHT
         page.update()
+
+        page.run_task(save_preferences)
 
     ft.use_effect(update_theme, [state.is_dark, state.primary_color])
 
@@ -166,13 +178,24 @@ Thử thách mở rộng
 - More colors - Color picker đầy đủ hơn
 '''    
 
-def main(page: ft.Page):
+async def load_preferences(page: ft.Page):
+
+    data = await page.shared_preferences.get("theme")
+
+    if data:
+        theme = json.loads(data)
+        state.is_dark = theme["dark"]
+        state.primary_color = theme["color"]
+
+async def main(page: ft.Page):
     page.title = "Theme Switcher"
     page.padding = 20
     page.window.width = 850
     page.window.height = 830
     
+    await load_preferences(page)
+
     page.render(lambda: ThemeSwitcherApp(page))
     
- 
+    
 ft.run(main)
