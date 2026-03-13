@@ -52,7 +52,11 @@ def ItemDetail():
     if not item:
         return ft.View(
             route="/detail", 
-            controls=[ft.Text("Item not found")]
+            controls=[ft.AppBar(
+                title=ft.Text("Item not found"),
+                leading=ft.IconButton(ft.Icons.ARROW_BACK, on_click=lambda _: state.go_back()),
+            )]
+            
         )
     
     return ft.View(
@@ -88,4 +92,4 @@ def main(page: ft.Page):
 
     page.render_views(App)
  
-ft.run(main)
+# ft.run(main)
