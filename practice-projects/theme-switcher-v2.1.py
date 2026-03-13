@@ -3,8 +3,9 @@ import json
 
 @ft.observable
 class ThemeState:
-    is_dark: bool = False
+    theme_mode: str = "system"
     primary_color: str = "blue"
+    font_family: str = "Poppins"
 
     colors = {
         "blue": ft.Colors.BLUE,
@@ -14,17 +15,28 @@ class ThemeState:
         "red": ft.Colors.RED,
     }
     
-    def toggle_mode(self):
-        self.is_dark = not self.is_dark
+    def toggle_mode(self, mode: str):
+        self.theme_mode = mode
     
     def set_color(self, color: str):
         self.primary_color = color
     
     def get_primary(self):
         return self.colors.get(self.primary_color, ft.Colors.BLUE)
+    
+    def set_font(self, font: str):
+        self.font_family = font
  
 state = ThemeState()
  
+def get_theme_icon():
+    icons = {
+        "light": ft.Icons.LIGHT_MODE,
+        "dark": ft.Icons.DARK_MODE,
+        "system": ft.Icons.LAPTOP,
+    }
+    return icons.get(state.theme_mode, ft.Icons.PALETTE)
+
 @ft.component
 def ColorPicker():
     ft.use_state(state)
@@ -111,21 +123,42 @@ def ThemeSettings():
             content=ft.Column([
                 ft.Text("Theme Settings", size=20, weight=ft.FontWeight.BOLD),
                 ft.Divider(),
-                
-                # Mode toggle
+
+                # dropdown to choice theme mode
                 ft.Row([
-                    ft.Icon(ft.Icons.LIGHT_MODE if not state.is_dark else ft.Icons.DARK_MODE),
-                    ft.Text("Dark Mode"),
-                    ft.Container(expand=True),
-                    ft.Switch(
-                        value=state.is_dark,
-                        on_change=lambda _: state.toggle_mode(),
-                    ),
+                    ft.Icon(get_theme_icon()),
+                    ft.Text("Theme Mode"),
                 ]),
-                
+                ft.Dropdown(
+                    width=200,
+                    value=state.theme_mode,
+                    options=[
+                        ft.dropdown.Option(key="light", text="Light", leading_icon=ft.Icons.LIGHT_MODE),
+                        ft.dropdown.Option(key="dark", text="Dark", leading_icon=ft.Icons.DARK_MODE),
+                        ft.dropdown.Option(key="system", text="System", leading_icon=ft.Icons.LAPTOP),
+                    ],
+                    on_select=lambda e: state.toggle_mode(e.control.value),
+                ),
+
                 # Color picker
                 ft.Text("Primary Color", weight=ft.FontWeight.W_500),
                 ColorPicker(),
+
+                # dropdown to choice font family
+                ft.Row([
+                    ft.Icon(ft.Icons.FONT_DOWNLOAD),
+                    ft.Text("Font Family"),
+                ]),
+                ft.Dropdown(
+                    value=state.font_family,
+                    options=[
+                        ft.dropdown.Option("Poppins"),
+                        ft.dropdown.Option("Roboto"),
+                        ft.dropdown.Option("Montserrat"),
+                        ft.dropdown.Option("JetBrainsMono"),
+                    ],
+                    on_select=lambda e: state.set_font(e.control.value),
+                )
             ]),
             padding=20,
         ),
@@ -139,24 +172,35 @@ def ThemeSwitcherApp(page: ft.Page):
         await page.shared_preferences.set(
             "theme",
             json.dumps({
-                "dark": state.is_dark,
-                "color": state.primary_color
+                "mode": state.theme_mode,
+                "color": state.primary_color,
+                "font": state.font_family
             })
         )
 
     def update_theme():
         page.theme = ft.Theme(
-            color_scheme=ft.ColorScheme(primary=state.get_primary())
+            color_scheme=ft.ColorScheme(primary=state.get_primary()),
+            font_family=state.font_family
         )
         page.dark_theme = ft.Theme(
-            color_scheme=ft.ColorScheme(primary=state.get_primary())
+            color_scheme=ft.ColorScheme(primary=state.get_primary()),
+            font_family=state.font_family
         )
-        page.theme_mode = ft.ThemeMode.DARK if state.is_dark else ft.ThemeMode.LIGHT
+        
+        theme_modes = {
+            "light": ft.ThemeMode.LIGHT,
+            "dark": ft.ThemeMode.DARK,
+            "system": ft.ThemeMode.SYSTEM
+        }
+
+        page.theme_mode = theme_modes[state.theme_mode]
+
         page.update()
 
         page.run_task(save_preferences)
 
-    ft.use_effect(update_theme, [state.is_dark, state.primary_color])
+    ft.use_effect(update_theme, [state.theme_mode, state.primary_color, state.font_family])
 
     return ft.Row([
         ft.Container(
@@ -170,13 +214,6 @@ def ThemeSwitcherApp(page: ft.Page):
             padding=20,
         ),
     ], expand=True)
-'''
-Thử thách mở rộng
-- Save preference - Lưu theme vào client storage
-- System theme - Theo theme của hệ điều hành
-- Custom fonts - Đổi font family
-- More colors - Color picker đầy đủ hơn
-'''    
 
 async def load_preferences(page: ft.Page):
 
@@ -184,18 +221,28 @@ async def load_preferences(page: ft.Page):
 
     if data:
         theme = json.loads(data)
-        state.is_dark = theme["dark"]
+        state.theme_mode = theme["mode"]
         state.primary_color = theme["color"]
+        state.font_family = theme["font"]
+    
+    print(state.font_family)
 
 async def main(page: ft.Page):
     page.title = "Theme Switcher"
     page.padding = 20
     page.window.width = 850
     page.window.height = 830
+
+
+    page.fonts = {
+        "Poppins": "fonts/Poppins-Regular.ttf",
+        "Roboto": "fonts/Roboto-Regular.ttf",
+        "Montserrat": "fonts/Montserrat-Regular.ttf",
+        "JetBrainsMono": "fonts/JetBrainsMono-Regular.ttf",
+    }
     
     await load_preferences(page)
 
     page.render(lambda: ThemeSwitcherApp(page))
-    
     
 ft.run(main)
