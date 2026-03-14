@@ -11,7 +11,6 @@ state = NavState()
  
 @ft.component
 def ContentArea():
-    ft.use_state(state)
 
     contents = ["🏠 Home Content", "🔍 Search Content", "👤 Profile Content"]
     return ft.Container(
