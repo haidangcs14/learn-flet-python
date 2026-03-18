@@ -1,5 +1,7 @@
 import flet as ft
 from src.views.home_view import HomeView
+from src.components.navigate import NavigationBar
+
 def main(page: ft.Page):
     page.title = "My Flet App"
 
@@ -9,7 +11,6 @@ def main(page: ft.Page):
     page.window.width = 500
     page.window.height = 1030
     
-    page.render_views(HomeView) 
-
+    page.render(HomeView)
 
 ft.run(main, assets_dir="assets")

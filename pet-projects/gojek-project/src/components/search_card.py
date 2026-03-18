@@ -1,9 +1,11 @@
 import flet as ft
 from flet import *
 
-# @ft.component
-
+@ft.component
 def SearchCard():
+
+    search, set_search = ft.use_state("")
+
     return ResponsiveRow([
         Container(
             bgcolor="#FFFFFF",
@@ -18,9 +20,11 @@ def SearchCard():
                         border_radius=30,
                         content=Row([
                             TextField(
+                                value=search,
                                 border="none",
                                 prefix_icon=Icons.SEARCH,
-                                label="Search Lunch ? "
+                                label="Search Lunch ? ",
+                                on_change=lambda e: (set_search(e.control.value), print(search)),
                             ),
                             ft.Row([
                                 IconButton(

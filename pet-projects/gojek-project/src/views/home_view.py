@@ -5,7 +5,7 @@ from src.components.search_card import SearchCard
 from src.components.bagde import Badge
 from src.components.footer import Footer
 
-class HomeView(ft.View):
+class HomeView(ft.Column):
     def __init__(self):
         super().__init__()
 
