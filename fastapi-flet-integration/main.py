@@ -17,4 +17,4 @@ app.mount("/", flet_app) # gan app vao endpoint "/"
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="localhost", port=8550)
+    uvicorn.run("main:app", host="localhost", port=8550, reload=True) # for dev to auto reload page
