@@ -1,6 +1,5 @@
 import flet as ft
 from src.views.home_view import HomeView
-from src.components.navigate import NavigationBar
 
 def main(page: ft.Page):
     page.title = "My Flet App"
