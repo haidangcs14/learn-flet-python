@@ -1,10 +1,12 @@
 import flet as ft
-import requests
 import time
 from typing import Any, Dict
+import asyncio
+import httpx
+import json
 
 
-def main(page: ft.Page):
+async def main(page: ft.Page):
 
     page.title = "Oppllama"
     page.padding = 20
@@ -25,59 +27,103 @@ def main(page: ft.Page):
     )
 
     messages = []
+    streaming_text_control = None
 
-    def send_query(e):
+    async def send_query(e):
         user_query = query_field.value.strip()
         if not user_query:
             return
 
         messages.append({"role": "user", "content": user_query})
-        update_display()
+        await update_display()
+
+        # disable button during streaming
+        send_button.disabled = True
+        query_field.disabled = True
+        page.update()
+
+        # clear input
+        query_field.value = ""
+        page.update()
+
+        # start streaming
+        asyncio.create_task(stream_response(user_query))
+
+    async def stream_response(user_query: str):
+
+        nonlocal streaming_text_control
 
         try:
-            result: Dict[str, Any] = make_request(user_query)
+            # store assistant message
+            messages.append({"role": "assistant", "content": ""})
 
-            response_text = result.get("response", "")
-            # print("Cory: ", result.get("response", ""))
-            messages.append({"role": "assistant", "content": response_text})
-            update_display()
-
-            # clear input after adding assistant message
-            query_field.value = ""
+            # create text control for streaming
+            streaming_text_control = ft.Text("assistant: ", size=14)
+            message_column.controls.append(streaming_text_control)
             page.update()
 
-        except requests.exceptions.RequestException as e:
+            # use async httpx client for streaming
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                async with client.stream(
+                    "POST",
+                    ollama_url,
+                    json={
+                        "model": model_name,
+                        "system": system_prompt,
+                        "prompt": user_query,
+                        "stream": True,
+                        "options": {
+                            "num_ctx": num_ctx,
+                            "num_predict": num_predict,
+                            "stop": ["\n"],
+                        },
+                    },
+                ) as response:
+                    response.raise_for_status()
+                    # process streaming
+                    accumulated_text = ""
+                    async for line in response.aiter_lines():
+                        if line:
+                            try:
+                                chunk = json.loads(line)
+                                if "response" in chunk:
+                                    token = chunk["response"]
+                                    accumulated_text += token
+
+                                    # update streaming text control
+                                    if streaming_text_control:
+                                        streaming_text_control.value = (
+                                            f"assistant: {accumulated_text}"
+                                        )
+                                        page.update()
+                                    # check if response is done
+                                    if chunk.get("done", False):
+                                        break
+                            except json.JSONDecodeError:
+                                continue
+                # update the mess in the list for persistence
+                if messages and messages[-1]["role"] == "assistant":
+                    messages[-1]["content"] = accumulated_text
+        except httpx.RequestError as e:
             print(f"Error connecting to Ollama: {str(e)}")
-        except Exception as e:
-            print(f"Error generating response: {str(e)}")
+            if (
+                streaming_text_control
+                and streaming_text_control in message_column.controls
+            ):
+                message_column.controls.remove(streaming_text_control)
+                await update_display()
+                send_button.disabled = False
+                query_field.disabled = False
+                streaming_text_control = None
+                page.update()
+        finally:
+            # re-enable controls
+            send_button.disabled = False
+            query_field.disabled = False
+            streaming_text_control = None
+            page.update()
 
-    def make_request(user_query: str) -> Dict[str, Any]:
-
-        start_time = time.time()
-
-        response = requests.post(
-            ollama_url,
-            json={
-                "model": model_name,
-                "system": system_prompt,
-                "prompt": user_query,
-                "stream": False,
-                "options": {
-                    "num_ctx": num_ctx,
-                    "num_predict": num_predict,
-                    "stop": ["\n"],
-                },
-            },
-        )
-
-        elapsed_time = time.time() - start_time
-
-        print(f"Elapsed time: {elapsed_time}")
-
-        response.raise_for_status()
-        return response.json()
-
-    def update_display():
+    async def update_display():
         message_controls = []
         for msg in messages:
             message_controls.append(ft.Text(f"{msg["role"]}: {msg['content']}"))
